@@ -1,0 +1,671 @@
+// Online C compiler to run C program online
+#include <stdio.h>
+#include <stdint.h>
+#include <stdbool.h>
+#include <string.h>
+#include <time.h>
+#include <stdlib.h>
+
+// 15 weapons
+typedef enum {
+    
+    TOOTHPICK = 0,
+    NUM_2_PENCIL,
+    TWEEZERS,
+    STURDY_BROOM,
+    KITTEN_NUM_CHUCKS,
+    NORMAL_SWORD,
+    BAGS_OF_BABOON_POO,
+    HOLLOW_BASEBALL_BAT,
+    MIDDLE_SCHOOL_MICROSCOPE,
+    GALLIUM_PIPE,
+    GRAPHENE_DUST,
+    LASER_CANNON,
+    ROAST_BEEF_FOOTLONG,
+    EPIDURAL_NEEDLE,
+    THORS_HAMMER
+    
+}weapons;
+
+typedef enum {
+    RAGGAMUFFIN = 0,
+    BLORKIN,
+    PHASNAMATEM,
+    SLIME,
+    TRICHTON,
+    BEYOND_FEAR,
+    SLOUCHING_CARROT,
+    NARDDLING,
+    HEMOSYTE,
+    HEAVY_BUBBLE,
+    ORCUS,
+    CROTCH_GOBLINS,
+    SUSPICIOUS_BUTTERFLY,
+    GENERAL_HOUSEFLY,
+    ANGSTY_TEEN_CTHULU
+}monsters;
+
+typedef enum {
+    DISMEMBERED = 0,
+    SEVERELY_POISONED,
+    MULTIPLE_FRACTURES,
+    INTERNAL_BLEEDING,
+    CONCUSSIONS,
+    CONFUSED,
+    NORMAL,
+    EXTRA_AWARE,
+    HIGHLY_CAFFIENATED,
+    GYM_SWOL,
+    LIONS_BLOOD,
+    INVULNERABLE,
+    TARRDEGRADE
+    
+}status;
+
+typedef struct game_config_s {
+    
+    uint8_t level_1_byte;
+    uint8_t level_2_byte;
+    uint16_t level_3_bytes;
+    uint16_t level_4_bytes;
+    //  add in more, and also rename from level_#'s or add it into the player struct
+    
+}game_bits;
+
+typedef struct game_monster_config {
+    char name[25];
+    uint8_t room_number;
+    uint32_t monster_stats;
+}game_monster;
+
+typedef struct game_player_config {
+    char name[25];
+    game_bits character;
+}game_player;
+
+const char entity_status[14][25] = {
+    "Dismembered",
+    "Severely Poisoned",
+    "Multiple Fractures",
+    "Internal Bleeding",
+    "Concussions",
+    "Confused",
+    "Normal",
+    "Extra Aware",
+    "Highly Caffienated",
+    "Gym Swol",
+    "Lions Blood",
+    "Invulnerable",
+    "Tarrdegrade"
+};
+
+const char monster_names[16][25] ={
+    "Ragga Muffin",
+    "Blorkin",
+    "Phasna Matem",
+    "Slime",
+    "Trichton",
+    "Beyond FEAR",
+    "Slouching Carrot",
+    "Nard Dling",
+    "Hemosyte",
+    "Heavy Bubble",
+    "Orcus",
+    "Crotch Goblins",
+    "Suspicious Butterfly",
+    "General Housefly",
+    "Angsty Teen Cthulu"
+};
+
+const char weapon_names[16][25] = {
+    "Tooth Pick",
+    "Number 2 Pencil",
+    "Tweezers",
+    "Sturdy Broom",
+    "Kitten Num Chucks",
+    "Normal Sword",
+    "Bags of Baboon Poo",
+    "Hollow Baseball Bat",
+    "Middle School Microscope",
+    "Pipe made of Gallium",
+    "Graphene Dust",
+    "Laser Cannon",
+    "Roast Beef Footlong",
+    "Epidural Needle",
+    "Thor's Hammer"
+};
+
+game_monster room_monster_data[15];
+
+
+
+// level-byte / level-bits are part of DND style game.
+
+/*
+level-1-bits
+---------------------------------
+| 8 - 7 | 6 - 5 | 4     -     1 |
+---------------------------------
+  USER    DIFF        LEVEL
+ 
+ level_1_byte = 0b11100111 = user 3, difficulty 3, level 7.
+*/
+/*
+level-2-bits
+-----------------------------------
+| 8 - 7 | 6      -      3 | 2 - 1 |
+-----------------------------------
+  DIR     PLAYER DAMAGE    SUB WEP
+
+level_2_byte = 0b11011001 = direction north, player damage 6, sub weapon knife
+
+*/
+/*
+level-3-bits
+--------------------------------------
+| 16      -      9 | 8      -      1 |
+--------------------------------------
+       HEALTH            DEFENSE
+       
+  level_3_byte = 0b1111010101000001 = health = 245, defense = 65.
+
+*/
+/*
+level-4-bits
+--------------------------------------
+| 16   -   13 | 12   -   9 | 8  -  1 |
+--------------------------------------
+PLAYER WEAPON  WEAPON HTLTH  STAMINA
+    
+  level_4_byte = 0b0110 1111 0110 0000 = player weapon equipped sword, weapon health 15, player stamina 96
+
+*/
+/*
+monster_attributes - 32 bit
+--------------------------------------------------------------------------------
+| 31      -      24 | 23   -   18 | 17     -      10 | 9   -   5 | 4  -  1 | 0 | 
+--------------------------------------------------------------------------------
+  MONSTER HEALTH        DAMAGE      MONSTER DEFENSE    STAMINA     STATUS   BOSS
+  
+  test_monster_variable = 0b 11001000 101101 01011000 100100 111 0
+  monster health = 200, monster damage = 45, monster defense = 36, status = normal, boss = No
+
+*/
+
+// create master mind with up to 5 players, separate modules (nrf or lora, with mastermind device chosen at random based on temp from user and mixed with rand() and compared with other )
+uint16_t big_rand(){
+    return (rand() % 65535);
+}
+
+uint8_t small_rand(){
+    return (rand() % 255);
+}
+
+uint8_t udr_rand(uint8_t size){
+    return (rand() % size);
+}
+
+uint32_t generate_monster(){
+    
+    uint32_t new_monster = 0x00000000;
+        uint16_t boss_test = 0x0000;
+    uint8_t rand_result = 0x00;
+    
+  //  generate monsters healt1
+        rand_result = small_rand();
+        //    printf("Generated Health: %i.\n", rand_result);
+  new_monster |= (rand_result << 24);
+  
+  //  generate monsters damage
+        rand_result = udr_rand(63);
+        //    printf("Generated Damage: %i.\n", rand_result);
+  new_monster |= (rand_result << 18);
+  
+  // generate monster defense
+        rand_result = small_rand();
+        //    printf("Generated Defense: %i.\n", rand_result);
+  new_monster |= (rand_result << 10);
+  
+  //  generate monster stamina
+        rand_result = udr_rand(31);
+        //    printf("Generated Stamina: %i.\n", rand_result);
+  new_monster |= (rand_result << 5);
+  
+  //  generate monster status
+        rand_result = udr_rand(13);
+         //   printf("Generated Status: %i.\n", rand_result);
+  new_monster |= (rand_result << 1);
+        for(uint8_t a = 0; a < 10; a++){
+            boss_test += small_rand();
+        }
+    if( (boss_test / 10) > 160){
+        new_monster |= 0x00000001;
+     //   printf("Tested Monster is BOSS material: %i.\n", (boss_test / 10));
+    }else{
+     //   printf("Non Boss Monster Tested As: %i.\n", (boss_test / 10));
+        new_monster |= 0x00000000;
+    }
+    return new_monster;
+}
+
+void slow_copy(char *a, const char *b){
+    for(uint8_t v = 0; v < 25; v++){
+        a[v] = b[v];
+    //    printf("A%i: %c\tB%i: %c\n", a[v], b[v]);
+    }
+}
+
+void generate_monster_name(game_monster *monster, uint8_t mon_name){
+     //   printf("Monster Number: %i.\n", mon_name);
+        switch(mon_name){
+            case 0:
+                slow_copy(monster->name, monster_names[0]);
+            break;
+            case 1:
+                slow_copy(monster->name, monster_names[1]);
+            break;
+            case 2:
+                slow_copy(monster->name, monster_names[2]);
+            break;
+            case 3:
+                slow_copy(monster->name, monster_names[3]);
+            break;
+            case 4:
+                slow_copy(monster->name, monster_names[4]);
+            break;
+            case 5:
+                slow_copy(monster->name, monster_names[5]);
+            break;
+            case 6:
+                slow_copy(monster->name, monster_names[6]);
+            break;
+            case 7:
+                slow_copy(monster->name, monster_names[7]);
+            break;
+            case 8:
+                slow_copy(monster->name, monster_names[8]);
+            break;
+            case 9:
+              slow_copy(monster->name, monster_names[9]);
+            break;
+            case 10:
+                slow_copy(monster->name, monster_names[10]);
+            break;
+            case 11:
+                slow_copy(monster->name, monster_names[11]);
+            break;
+            case 12:
+              slow_copy(monster->name, monster_names[12]);
+            break;
+            case 13:
+                slow_copy(monster->name, monster_names[13]);
+            break;
+            case 14:
+               slow_copy(monster->name, monster_names[14]);
+            break;
+        }
+}
+
+void display_level_1_bits(game_bits *player){
+    printf("Player:\n");
+    switch( ((player->level_1_byte & 0xC0) >> 6) ){
+        case 0:
+            printf("\tZero.\n");
+        break;
+        case 1:
+            printf("\tOne.\n");
+        break;
+        case 2:
+            printf("\tTwo.\n");
+        break;
+        case 3:
+            printf("\tThree.\n");
+        break;
+        default:
+            printf("\t\tNot a valid player.\n");
+        break;
+    }
+    printf("Difficulty:\n");
+    switch( ((player->level_1_byte & 0x30) >> 4) ){
+        case 0:
+            printf("\tEasy.\n");
+        break;
+        case 1:
+            printf("\tNormal.\n");
+        break;
+        case 2:
+            printf("\tAdvanced.\n");
+        break;
+        case 3:
+            printf("\t\tBaby Don't Hurt Me No More.\n");
+        break;
+        default:
+            printf("Black Baby From VERY white parents. (error)\n");
+        break;
+    }
+    printf("Player Level: \n\t%i.\n", (player->level_1_byte & 0x0F));
+}
+
+void display_level_2_bits(game_bits *player){
+    printf("Current Direction:\n");
+        switch( ((player->level_2_byte & 0xC0) >> 6) ){
+            case 0:
+                printf("\tSouth\n.");
+            break;
+            case 1:
+                printf("\tWest.\n");
+            break;
+            case 2:
+                printf("\tEast.\n");
+            break;
+            case 3:
+                printf("\tNorth.\n");
+            break;
+            default:
+                printf("\tHoly fuck is that a black hole?\n");
+            break;
+        }
+    printf("Player Damage: \n\t%i.\n", ((player->level_2_byte & 0x3C) >> 2) );
+    printf("Current Sub Weapon:\n");
+        switch( (player->level_2_byte & 0x03) ){
+            case 0:
+                printf("\tNone.\n");
+            break;
+            case 1:
+                printf("\tKnife.\n");
+            break;
+            case 2:
+                printf("\tPocket Sand.\n");
+            break;
+            case 3:
+                printf("\tSlightly Useful Wand.\n");
+            break;
+            default:
+                printf("\tNothing in my hand as usual.\n");
+            break;
+        }
+}
+
+void display_level_3_bits(game_bits *player){
+    printf("Player Health: \n\t%i.\n", ( ((player->level_3_bytes & 0xFF00)>>8)&0xFF) );
+    printf("Player Defense: \n\t%i.\n", (player->level_3_bytes & 0x00FF) );
+}
+
+void display_level_4_bits(game_bits *player){
+    printf("Player Weapon:\t");
+        switch( ((player->level_4_bytes & 0xF000) >> 12)){
+            case TOOTHPICK:
+                printf("Using a: \n\t%s.\n", weapon_names[0]);
+            break;
+            case NUM_2_PENCIL:
+                printf("Using a: \n\t%s.\n", weapon_names[1]);
+            break;
+            case TWEEZERS:
+                printf("Using a: \n\t%s.\n", weapon_names[2]);
+            break;
+            case STURDY_BROOM:
+                printf("Using a: \n\t%s.\n", weapon_names[3]);
+            break;
+            case KITTEN_NUM_CHUCKS:
+                printf("Using a: \n\t%s.\n", weapon_names[4]);
+            break;
+            case NORMAL_SWORD:
+                printf("Using a: \n\t%s.\n", weapon_names[5]);
+            break;
+            case BAGS_OF_BABOON_POO:
+                printf("Using a: \n\t%s.\n", weapon_names[6]);
+            break;
+            case HOLLOW_BASEBALL_BAT:
+                printf("Using a: \n\t%s.\n", weapon_names[7]);
+            break;
+            case MIDDLE_SCHOOL_MICROSCOPE:
+                printf("Using a: \n\t%s.\n", weapon_names[8]);
+            break;
+            case GALLIUM_PIPE:
+                printf("Using a: \n\t%s.\n", weapon_names[9]);
+            break;
+            case GRAPHENE_DUST:
+                printf("Using a: \n\t%s.\n", weapon_names[10]);
+            break;
+            case LASER_CANNON:
+                printf("Using a: \n\t%s.\n", weapon_names[11]);
+            break;
+            case ROAST_BEEF_FOOTLONG:
+                printf("Using a: \n\t%s.\n", weapon_names[12]);
+            break;
+            case EPIDURAL_NEEDLE:
+                printf("Using a: \n\t%s.\n", weapon_names[13]);
+            break;
+            case THORS_HAMMER:
+                printf("Using a: \n\t%s.\n", weapon_names[14]);
+            break;
+            
+            default:
+                printf("\n\tIncorrect Weapons.. so Hands?\n");
+            break;
+        }
+        
+        printf("Weapons Health: \n\t%i.\n", ((player->level_4_bytes & 0x0F00) >> 8));
+        
+        printf("Current Stamina: \n\t%i.\n", (player->level_4_bytes & 0x00FF));
+        
+}
+
+void display_all_level_bits(game_bits *player){
+    display_level_1_bits(player);
+    display_level_2_bits(player);
+    display_level_3_bits(player);
+    display_level_4_bits(player);
+}
+
+void display_effects(game_monster *m, game_player *p){
+    uint8_t status = 0x00;
+        if(p == NULL){
+            status = ((m->monster_stats & 0x0000001E) >> 1);
+          //  printf("Monster Status Code: 0x%02x.\n", status);
+        }else if(m == NULL){
+         //   status = ((p->status));
+        }
+    switch(status){
+        case 0:
+            printf("is %s.\n", entity_status[0]);
+        break;
+        case 1:
+            printf("is %s.\n", entity_status[1]);
+        break;
+        case 2:
+            printf("has %s.\n", entity_status[2]);
+        break;
+        case 3:
+            printf("has %s.\n", entity_status[3]);
+        break;
+        case 4:
+            printf("has %s.\n", entity_status[4]);
+        break;
+        case 5:
+            printf("is %s.\n", entity_status[5]);
+        break;
+        case 6:
+            printf("is %s.\n", entity_status[6]);
+        break;
+        case 7:
+            printf("is %s.\n", entity_status[7]);
+        break;
+        case 8:
+            printf("is %s.\n", entity_status[8]);
+        break;
+        case 9:
+            printf("is %s.\n", entity_status[9]);
+        break;
+        case 10:
+            printf("drank %s.\n", entity_status[10]);
+        break;
+        case 11:
+            printf("is %s.\n", entity_status[11]);
+        break;
+        case 12:
+            printf("is a %s.\n", entity_status[12]);
+        break;
+        
+    }
+}
+
+void display_status_effect(game_monster *m, game_player *p){
+    if(m == NULL){
+    //   printf("The player");
+    //    display_effects(player);
+    }
+    
+    if(p == NULL){
+        printf("The monster\n\t");
+            display_effects(m, p);
+    }
+}
+
+void generate_room_monsters(){
+    game_monster buffooon = {
+        .name = "                         "
+    };
+     //   printf("\n\nGenerating Room Monsters\n");
+    for(uint8_t a = 0; a < 16; a++){
+        generate_monster_name(&buffooon, a);
+        //    printf("Monsters's Name: %s.\n", buffooon.name);
+            memcpy(room_monster_data[a].name, buffooon.name, 25);
+        room_monster_data[a].monster_stats = generate_monster();
+        room_monster_data[a].room_number = udr_rand(15);
+     //   printf("\n\n");
+    }
+}
+
+void display_monster_base_stats(game_monster rooster[15], uint8_t room_num){
+    uint8_t monster_health = 0x00;
+    uint8_t monster_defense = 0x00;
+        printf("Monsters FULL Stats: 0x%08x.\n", rooster[room_num].monster_stats);
+    monster_health = ((rooster[room_num].monster_stats & 0xFF000000) >> 24);
+    monster_defense = ((rooster[room_num].monster_stats & 0x003FC000) >> 10);
+    printf("Monster Health: \n\t%i.\n", monster_health);
+    printf("Monster Defense: \n\t%i.\n", monster_defense);
+}
+
+void display_monster_insight(game_monster rooster[15], uint8_t rn){
+    uint8_t monster_damage;
+    uint8_t monster_stamina;
+    bool is_monster_boss;
+        monster_damage = ((rooster[rn].monster_stats & 0x00FC0000) >> 16);
+        monster_stamina = ((rooster[rn].monster_stats & 0x000003E0) >> 5);
+        ((rooster[rn].monster_stats & 0x01) ? (is_monster_boss = true) : (is_monster_boss = false));
+    printf("Extra Monster Insight\n");
+        printf("Monster Damage: %i\tMonster Stamina: %i\n\tBoss Monster: %c\n", monster_damage, monster_stamina, (is_monster_boss ? 'Y' : 'N'));
+}
+
+void display_room_monster(game_monster *monster){
+    printf("In room %i, we found: %s.\n", monster->room_number, monster->name);
+}
+
+void enter_general_room(){
+    uint8_t num = udr_rand(15);
+    
+    display_room_monster(&room_monster_data[num]);
+    display_monster_base_stats(&room_monster_data[num], num);
+    display_status_effect(&room_monster_data[num], NULL);
+    display_monster_insight(&room_monster_data[num], num);
+    
+}
+
+void display_player_stats(game_player *p){
+    printf("Player's Name: %s.\n", p->name);
+    display_level_1_bits(&p->character);
+    display_level_2_bits(&p->character);
+    display_level_3_bits(&p->character);
+    display_level_4_bits(&p->character);
+}
+
+game_player generate_new_player(uint8_t player_num){
+    uint8_t rand_stat = 0x00;
+    game_player newbie;
+    //  Set New Player Level To 1
+        newbie.character.level_1_byte |= 0x01;
+    //  User Selected Config
+    uint8_t difficulty = 0x00;
+    //  User Selected Config
+    uint8_t start_dir = 0x00;
+    printf("Enter Difficulty: 0-3\n");
+        scanf("%i", &difficulty);
+    printf("Enter Starting Direction:\n");
+    printf("0-S, 1-W, 2-E, 3-N\n");
+        scanf("%i", &start_dir);
+        //  Set Player Number
+        if(player_num >= 0 && player_num < 4){
+            newbie.character.level_1_byte |= ((player_num & 0x03) << 6);
+        }
+        //  Set Game Difficulty
+        if(difficulty >= 0 && difficulty < 4){
+            newbie.character.level_1_byte |= ((difficulty & 0x03) << 4);
+        }
+        //  Set Starting Direction
+        if(start_dir >= 0 && start_dir < 4){
+            newbie.character.level_2_byte |= ((start_dir & 0x03) << 6);
+        }
+        //  Random Health
+     rand_stat = small_rand();
+        newbie.character.level_3_bytes |= (rand_stat << 8);
+        // Random Defense
+     rand_stat = small_rand();
+        newbie.character.level_3_bytes |= rand_stat;
+        // Random Sub Weapon
+    rand_stat = udr_rand(3);
+        newbie.character.level_3_bytes |= ((rand_stat & 0x03));
+        // Random Player Damage
+    rand_stat = udr_rand(15);
+        newbie.character.level_2_byte |= ((rand_stat & 0x0F) << 2);
+        //  Random Player Weapon
+    rand_stat = udr_rand(15);
+        newbie.character.level_4_bytes |= ((rand_stat & 0x0F) << 12);
+        //  Random Weapon Health
+    rand_stat = udr_rand(15);
+        newbie.character.level_4_bytes |= ((rand_stat & 0x0F) << 8);
+        //  Random Player Stamina
+    rand_stat = small_rand();
+        newbie.character.level_4_bytes |= ((rand_stat & 0xFF));
+    return newbie;
+}
+
+void enter_players_name(game_player *p){
+printf("Enter Characters Name:\n");
+    scanf("%s", p->name);
+}
+
+
+game_bits player_three = {
+    
+    .level_1_byte = 0b11100001,
+    .level_2_byte = 0b11000110,
+    .level_3_bytes = 0b0100101100011001,
+    .level_4_bytes = 0b0101110000110000
+    
+};
+
+//  below are mastermind game parts
+
+
+
+int main() {
+
+    srand(time(NULL));
+//display_all_level_bits(&player_three);
+  generate_room_monsters();
+    printf("\n\n");
+  enter_general_room();
+    printf("\n\n");
+    game_player player_one = generate_new_player(0);
+        enter_players_name(&player_one);
+          display_player_stats(&player_one);
+          
+    game_player player_two = generate_new_player(1);
+        enter_players_name(&player_two);
+        display_player_stats(&player_two);
+    
+//  based on user difficulty setting, the player damage and monster damage will be altered.
+    
+    
+}
