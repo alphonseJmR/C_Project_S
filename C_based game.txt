@@ -83,6 +83,8 @@ typedef struct game_player_config {
     game_bits character;
 }game_player;
 
+
+
 const char entity_status[14][25] = {
     "Dismembered",
     "Severely Poisoned",
@@ -189,6 +191,28 @@ monster_attributes - 32 bit
   
   test_monster_variable = 0b 11001000 101101 01011000 100100 111 0
   monster health = 200, monster damage = 45, monster defense = 36, status = normal, boss = No
+
+*/
+
+/*
+DICE ROLL MODIFICATION BIT PLACEMENTS (32bit)
+Which Die Augments What
+//  Player AUGMENTS
+Die 8 - Health Augment // Probably not a linear relationship
+Die 7 - Defense Augment  // Thinking the same as the above
+Die 6 - Damage Augment     // Standard Size Increment
+Die 5 - Stamine Augment     //  Try to Change Current Direction
+
+// Monster Disadvantages
+Die 4 - Health Disadvantage
+Die 3 - Defense Disadvantage
+Die 2 - Damage Disadvantage
+Die 1 - Stamina Disadvantage
+
+--------------------------------------------------------------------------------------------------------------
+|31   -   28 | 27   -   24 | 23   -   20 | 19   -   16 | 15   -   12 | 11   -    8 | 7   -    4 | 3   -    0 |
+--------------------------------------------------------------------------------------------------------------
+     DIE 8	   DIE 7	 DIE 6	       DIE 5	     DIE 4	   DIE 3        DIE 2        DIE 1
 
 */
 
@@ -649,6 +673,8 @@ game_bits player_three = {
 
 
 
+
+
 int main() {
 
     srand(time(NULL));
@@ -661,9 +687,9 @@ int main() {
         enter_players_name(&player_one);
           display_player_stats(&player_one);
           
-    game_player player_two = generate_new_player(1);
-        enter_players_name(&player_two);
-        display_player_stats(&player_two);
+ //   game_player player_two = generate_new_player(1);
+  //    enter_players_name(&player_two);
+    //   display_player_stats(&player_two);
     
 //  based on user difficulty setting, the player damage and monster damage will be altered.
     
